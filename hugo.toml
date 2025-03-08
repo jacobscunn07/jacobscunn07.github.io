@@ -1,0 +1,18 @@
+baseURL = 'https://example.org/'
+languageCode = 'en-us'
+title = 'Jacob Cunningham'
+theme = "hugo-theme-m10c"
+
+[params]
+  description = "YAML Engineer"
+
+  [[params.social]]
+    icon = "brand-github"
+    name = "Github"
+    url = "https://github.com/jacobscunn07"
+
+  [[params.social]]
+    icon = "brand-linkedin"
+    name = "LinkedIn"
+    url = "https://www.linkedin.com/in/jacob-cunningham/"
+
