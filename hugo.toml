@@ -2,6 +2,7 @@ baseURL = 'https://example.org/'
 languageCode = 'en-us'
 title = 'Jacob Cunningham'
 theme = "hugo-theme-m10c"
+enableEmoji = true
 
 [params]
   description = "YAML Engineer"
