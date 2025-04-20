@@ -88,9 +88,9 @@ Yes, even with our infrastructure as code, we should write our code to respect f
 
 The __*global feature flag*__ is just like it sounds. It is a global feature flag, or variable, that can control the creation of all resources.
 
-#### Example
+##### Example
 
-The below example shows how we are controlling the creating of our S3 Buckets and RDS Instances with a simple `create` variable. With this, we can easily toggle if all resources should be created or not.
+The below example shows how we are controlling the creating of our S3 Buckets and RDS Instances with a simple `create` variable. With this, we can easily toggle if the resources within those two modules should be created or not.
 
 ```hcl
 module "s3" {
@@ -110,16 +110,15 @@ module "rds" {
 }
 ```
 
-
 #### Resource Feature Flag
 
-The __*resource feature flag*__ is also very descriptive in name. It is a variable that will control the creation of a subset of resources. It can be applied to individual resources, or to an entire module.
+The __*resource feature flag*__ is also very descriptive in it's name. It is a variable that will control the creation of a subset of resources. It can be applied to individual resources, or to an entire module.
 
-#### Example
+##### Example
 
 The below example is using our data driven approach to writing Terraform. 
 
-The variable `s3_buckets` is a list of maps which defines the properties of our S3 Buckets. 
+The variable `s3_buckets` is a map of objects that describe the properties of our S3 Buckets. 
 
 We can include a property `create_bucket` that will control if this particular bucket should be created or not. If this property exists in the object, the value of this property will be passed down into the module where the module itself has been written using feature flags, otherwise `true` will be passed down.
 
@@ -153,25 +152,103 @@ module "s3" {
 
 So why should you write your Terraform using feature flags? What are the benefits that we get from this? This is a good question to ask as it become quite tedious to ensure that all of your resources include a feature flag to control it's creation.
 
-##### Keeping Code Clean
+##### Clean Code
 
 Terraform code to create the resource(s) stays in place and is there in the future if needed. In a data driven configuration, we can have some elements of a map have a `create` variable configured as `false`. We no longer have to delete code, or leave code in place, but commented to prevent creation of resources.
 
+There is nothing worse than having to comment code out because it is not necessary any more for whatever the reason may be. That or completely deleting code that could be useful in the future.
+
 ##### The Lives of Pull Request Reviewers Becomes Much Nicer
-Pull requests become much easier to understand. As a reviewer, I will be able to see that you are only preventing the creation of a specific resource or set of resources. The change in the pull request is a one liner, `create = false`. A reviewer can see this and determine if the request can be approved or not in seconds.
+
+Pull requests become much easier to understand. As a reviewer, I will be able to see that you are only preventing the creation of a specific resource or set of resources. Instead of commenting out or deleting potentially large chunks of code, the change in the pull request becomes a one liner, `create = false`. A reviewer can see this and determine if the request can be approved or not within seconds.
 
 ##### Preventing Drift Detection False Positives
-A global `create` variable will allow us to prevent the creation of the entire root module if necessary. This is useful in the scenario where you have a drift detection workflow. By destroying resources with `terraform destroy` instead of configuring the global `create` variable to `false`, the drift detection workflow will determine that drift has occurred since the `terrform plan` will determine the resources need to be created.
+
+Have you ever been in the scenario where you executed a `terraform destroy` one day only to come jump online the next to see that the drift detection workflow failed? This can happen because in the context of the drift detection workflow, Terraform does not know that you intentially destroyed the resources in that workspaces. Terraform will come to the conclusion that a drift has occured and mark the workflow failed.
+
+This is where the global feature flag can come in handy. If you intend to destroy all resources in a workspace, configuring this feature flag will survive the imperative `terraform destroy` command. In fact, `terraform destroy` becomes a `terraform apply`. With this variable being set in the `.tfvars` file for the workspace, the drift detection workflow will now pass because it is now aware of the fact that you do intend to not create any resources.
 
 ---
 
 ### Avoid the Object Type, Use the Any Type
 
+Once you begin down the path of writing Data Driven Terraform, it will feel natural to use the `object` variable type. At first this seems the obvious choice, but there is a drawback with this type. 
+
+The drawback of the `object` type is that if you have a variable that is of type `map(object(...))`, you will quickly run into Terraform complaining that not all objects in the map are of the same type. We need to work around this somehow because there will definitely be times where our objects do not have same structure. 
+
+For example, we could want to set a default value if a value is not given in the variable by whoever is consuming this module.
+
+How can we get around this? Enter `type = any`. By setting our variables type to be `type = any`, we can now give it any type we would like. It could be a map, list, number, string, etc. This is how many of the popular Terraform modules work under the hood.
+
+You would likely want to be extra careful when writing documentation for this variable. There is a good chance that someone consuming this module, or providing a variable file will not know the structure that the variable will need to be in. Open source modules use this technique often and usually my biggest question, do they expect a map of objects or a list of objects?
+
+You may be wondering how to consume the different properties of an object if the type is `any`. It may be tempting to access the property directly, such as `myvar["my_property_that_might_exist"]`. I won't blame you for trying this, but this will fail if the property does not exist. We don't want our Terraform blowing up for this reason.
+
+Terraform has a solution for this. Terraform has a `lookup` function that takes three parameters, the object, the name of the property that you want to select within the object, and the default value if the property does not exist.
+
+```hcl
+# This will cause Terraform to blow up if the property "force_destroy" does not exist in the variable "my_bucket"
+force_destroy = var.my_bucket["force_destroy"]
+
+# This will succeed regardless if the property exists or not
+force_destroy = lookup(var.my_bucket, "force_destroy", true)
+```
+
+#### Example
+
+The below example shows how we can provide a single variable for creating many AWS S3 Buckets. You can see that we are defining properties for two buckets as objects, but their structure do not match. The second bucket has an additional `create` property configured. 
+
+If you are writing Terraform with feature flags, this will be a very common use case where the objects of a map may not match.
+
+```hcl
+# variables.tf
+variable "create" {
+  type    = bool
+  default = true
+}
+
+variable "buckets" {
+  type    = any
+  default = {}
+}
+
+# terraform.tfvars
+buckets = {
+  "bucketA" = {
+    force_destroy = true
+  },
+  "bucketB" = {
+    create       = false
+    force_destroy = false
+  }
+}
+
+# main.tf
+module "s3" {
+  source   = "terraform-aws-modules/s3-bucket/aws"
+  for_each = var.buckets
+
+  create_bucket = var.create && lookup(each.value, "create_bucket", true)
+  force_destroy = lookup(each.value, "force_destroy", true)
+  # ... removed for brevity
+}
+```
+
+#### Benefits
+
+1. We are able to use have a map of objects without using `type = map(object(...))` as Terraform will blow up if the objects' structures do not match
+1. We can safely pluck the value of a property in an object without having to worry if the property exists or not
+1. We can provide a default value when the property does not exist in the object
+
 ---
 
 ### Avoid Using Resources Directly in a Root Module
 
-This is more of a pet peeve of mine. I would could call it an anti-pattern. 
+This is more of a pet peeve of mine. I personally would could call this an anti-pattern. Terraform is built on top of the idea of modules. So why should I be using resources directly in my Root Module? I should be grouping like resources together into a module where I can reference that module inside of my Root Module.
+
+You may be faced with a scenario where the community module that you are consuming does not support your use case. The most obvious solution to this is to use the community module as normal and then create whatever resources necessary for your use case.
+
+I would suggest another solution to this problem. Instead of having the instances of these resources exist directly in the Root Module. I would instead create a new module where this module contains the community module and the additional resources.
 
 ---
 
