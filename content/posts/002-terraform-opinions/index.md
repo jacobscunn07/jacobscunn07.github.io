@@ -244,11 +244,29 @@ module "s3" {
 
 ### Avoid Using Resources Directly in a Root Module
 
-This is more of a pet peeve of mine. I personally would could call this an anti-pattern. Terraform is built on top of the idea of modules. So why should I be using resources directly in my Root Module? I should be grouping like resources together into a module where I can reference that module inside of my Root Module.
+This is more of a pet peeve of mine. I personally would could call this an anti-pattern. 
 
-You may be faced with a scenario where the community module that you are consuming does not support your use case. The most obvious solution to this is to use the community module as normal and then create whatever resources necessary for your use case.
+Terraform is built on top of the idea of modules. So why should we be using resources directly in the Root Module? We should be grouping like resources together into a module where we can reference that module inside of the Root Module.
 
-I would suggest another solution to this problem. Instead of having the instances of these resources exist directly in the Root Module. I would instead create a new module where this module contains the community module and the additional resources.
+There are times when you are using a public, community developed moduule that does not support your use case. The most obvious solution to this is to use this community module as normal and create whatever resources necessary along side it to achieve the functionality of your use case.
+
+While this is definitely an option, and a widely used and accepted solution to this problem, I would suggest another solution. Instead of having the instances of these resources exist directly in the Root Module. I would instead create a new module where this module contains the community module and the additional resources.
+
+#### Benefits
+
+##### Modularity
+
+As mentioned before, Terraform is built on top of the idea of modules. By embracing this idea of modules, we end of with a module that is written in a generalized and reusable way. This will allow us to easily expand the module in the future, or possibly share our module with others without others being privvy to our use case.
+
+Our future selves with thank us for this, trust me!
+
+##### Readability
+
+I often find myself context switching between Terraform Root Modules multiple times in a day. It is important for my own efficiency that when I context switch, I can quickly gather what the Terraform code is doing and resources that it manages. 
+
+With the use of modules, I can very quickly infer that the AWS VPC module is for managing network resources, or that the AWS IAM EKS Role module is for managing a role that is to be assumed by an EKS Service Account.
+
+By looking at the name of the module and it's inputs, these things are quick to infer. Without these modules, I would have to look at a file that could have 500, 800, or possibly even 1000 lines of Terraform code. This is too much to read through and quickly determine what resources are being created and managed.
 
 ---
 
