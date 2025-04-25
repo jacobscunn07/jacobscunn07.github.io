@@ -18,13 +18,15 @@ For easy navigation, the tips, tricks, patterns, etc that I will be discussing a
 
 ### Write Data Driven Terraform
 
-Recently, I have began writing my Terraform Root Modules in a Data Driven approach. What do I mean by this? I mean instead of creating very specific resources with very specific names in your Terraform code, write code that is generic and will operate off of a variable or local variable to create resources.
+Recently, I have started writing my Terraform Root Modules in a Data Driven approach. Writing Terraform in a Data Driven approach is to write Terraform code that is generic and will operate off of a variable to create resources instead of creating very specific resources with very specific names in your Terraform code.
 
-Let's compare two examples, that achieve the same end result of creating an AWS S3 Bucket for a static website.
+Let's compare two examples, that achieve the same end result of creating an AWS S3 Bucket for a static website, but are written the more typical way vs written with a data driven approach.
 
 #### Example: Before using a data driven approach
 ```hcl
 # terraform.tfvars
+bucket_name   = "my-static-website-123"
+force_destroy = true
 
 # variables.tf
 variable "bucket_name" {
@@ -70,12 +72,43 @@ module "buckets" {
 }
 ```
 
+#### Benefits
+
+A single Root Module could theoretically handle all use cases, instead of having several Root Modules where the root module itself is named with a specific name and its resources/sub-modules have specific names. 
+
+For example, prior to writing Terraform with this approach, I would end up with several "networking" root modules. A networking root module for the AWS Transit Gateway, implementing the hub and spoke networking module. A networking root module for each shared services VPC, workload VPC, etc. Depending on the complexity of your internal network, this could result in several root modules with a lot of duplicative code and the only differences really being the names of resources.
+
+The ability to configure features of your Terraform with ease becomes second nature. Need to destroy an S3 Bucket, easy, configure `create = false` in your variables file. Need to add an S3 Bucket Policy to only one of your buckets? Easy, configure a `bucket_policy` variable with the policy that you need.
+
 Many of the following points will assist in implementing a data driven approach to writing Terraform.
 
 ---
 
 ### Avoid Lists, Opt for Maps
+
 Have you every iterated over a list to create multiple instances of resources or modules only to eventually need to delete one and when you do, the terraform plan wants to delete and recreate resources that you were not expecting to be touched?
+
+I think this is a right of passage for all Terraform developers. It is the most natural way to think and write Terraform when you need to create several types of resources. The problem here is that we are creating physical resources in the cloud. These resources are assigned a path in the Terraform state file. By changing the path in the state file, Terraform will determine the resource needs to be recreated. Actually, not even that it needs to be recreated, but Terraform views them as two different resources. So it will attempt to destroy a resource and create a new resource.
+
+Lists are indexed with integers, so the list
+
+```hcl
+private_subnets = [
+    "",
+    "",
+    "",
+    ""
+]
+``
+
+is iterated as 
+
+```hcl
+private_subnets[0] = ""
+private_subnets[1] = ""
+private_subnets[2] = ""
+private_subnets[3] = ""
+```
 
 ---
 
