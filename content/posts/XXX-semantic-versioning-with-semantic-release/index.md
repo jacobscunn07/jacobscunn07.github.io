@@ -2,7 +2,7 @@
 date = '2025-05-05T08:00:00-05:00'
 title = 'Versioning Software Artifacts The Easy Way'
 slug = "semantic-versioning-with-semantic-release"
-tags = ["ci/cd"]
+tags = ["cicd"]
 +++
 
 Versioning software has been a long debated topic. Should this be an automated process? Is it even worth automating, or is manually creating versions fine? If we do automate it, what is the naming convention? Should it be be based on time, the CI system build number, the git short sha, semantic versioning, or maybe something else?
@@ -23,13 +23,13 @@ __Minor__ - A new feature has been introduced.
 
 __Patch__ - A fix to an existing feature has been triaged.
 
-Now that we undertand the components of a semantic version, how can we automate the selection of bumping the major, minor, or patch for the next release? To be able to achieve this in an automatic fashion, we need to establish a contract that we will adhere to. This contract will allow us to determine the next version automatically. The contract that we will be adhering to is called Conventional Commits.
+Now that we undertand the components of a semantic version, how can we automate the selection of bumping the major, minor, or patch for the next release? To be able to achieve this in an automatic fashion, we need to establish a contract that we will adhere to. This contract will be an agreement between human and machine, so that we can communicate with the automation system of segment of the semantic version should be incremented. The contract that we will be adhering to is called __Conventional Commits__.
 
 ### Conventional Commits
 
-[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) is the specification, or contract, for writing human readable commits that can be interpretted by machines. This is the human to machine contract that we will be using to determine the next semantic version.
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) is the specification, or contract, for writing human readable commits that can be interpretted by machines. Because of this, it is the perfect contract for us to instruct the automation system of which semantic version segment to be incremented.
 
-I strongly recommend that you review the official documentation for this specification. I will not be regurgitating it here in full, but essentially the specification states that all git commit messages should be in the format of:
+I strongly recommend that you review the official documentation for this specification. I will not be reiterating it here in full, but essentially the specification states that all git commit messages should be in the format of:
 
 ```text
 <type>(<scope>): <message or description>
@@ -39,7 +39,7 @@ In this format, there are three placeholders __type__, __scope__, and the __mess
 
 __type__
 
-The overall type of change this git commit contains. This is what determines if the next semantic version should bump the major, minor, or patch version. There are a few types that we can use.
+The overall type of change this git commit contains. This is what determines if the next semantic version should increment the major, minor, or patch version. There are a few types that we can use.
 * feat
 * fix
 * docs
@@ -50,7 +50,7 @@ __scope__
 
 The scope is the area of the codebase that is being modified in someway in this git commit. Remember, it is a development best practice to make small changes and integrate those changes often into the main branch.
 
-This is an optional field, so it can be omitted. If you are working on a distributed system, it is likely not necessary. If this repository is for a monolithic application, it will probably be helpful to include the scope.
+This is an optional field, so it can be omitted. If you are working on a distributed system, it is likely not necessary. If this repository is for a modular monolith, it will probably be helpful to include the scope.
 
 __Message or description__
 
@@ -78,12 +78,12 @@ The below is a new feature and will result in bumping the __minor__ version.
 git commit -m 'feat: This is a new feature'
 ```
 
-##### Example 3: Fix to an existing feature
+##### Example 3: Bug fix to an existing feature
 
-The below is a fix to an existing feature and will result in bumping the __patch__ version.
+The below is a bug fix to an existing feature and will result in bumping the __patch__ version.
 
 ```shell
-git commit -m 'fix: This is a fix to an existing feature'
+git commit -m 'fix: This is a bug fix to an existing feature'
 ```
 
 ### Semantic Release
@@ -96,19 +96,21 @@ git commit -m 'fix: This is a fix to an existing feature'
 
 ##### GitHub Repository
 
-A private __GitHub repository__. It does not necessarily need to be private, but for this implementation we will be working under the idea that we are building and versioning software internal to our organization. This is likely the scenario for most of us.
+A private __GitHub Repository__. It does not necessarily need to be private, but for this implementation we will be working under the assumption that we are building and versioning software internal to our organization. This is likely the scenario for most of us.
 
 ##### GitHub Personal Access Token
 
-A __GitHub Personal Access Token__ with repository access. We will need a PAT with repository access so that we have write access to our repository. 
+A __GitHub Personal Access Token__ (PAT) with repository access. We will need a PAT with repository access so that we have write access to our repository. 
 
 We will need to be able to create new releases in github for our version, push the tag for our version, and optionally create a `CHANGELOG.MD` file as a nice bit of documentation.
+
+Add this PAT as a repository secret named `SEMANTIC_RELEASE_TOKEN`.
 
 ##### GitHub Repository Collaborators
 
 If you created the GitHub PAT under a service account user, be sure that this user is a collaborator with write access on this repository.
 
-I know I've been burned a few times giving my PAT permissions, but not did not configurer permissions on the repository itself.
+I know I've been burned a few times giving my PAT permissions, but not did not configure permissions on the repository itself.
 
 <!-- ![think](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExY3A5ZmN3cTBqY2RkaGl4bjVzN3ZnNGhzOGNld2IyYjN1bzZrcTJ6MyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/777Aby0ZetYE8/giphy.gif) -->
 
@@ -124,64 +126,54 @@ Before we can do anything with Semantic Release, we need to create a configurati
 
 For example, which branches it is allowed to be executed on and which plugins we want to use.
 
-Create a file `release.config.js` at the root of your repository.
+Create a file `releaserc.json` at the root of your repository.
 
-```js
-const { execSync } = require('node:child_process');
-
-module.exports = {
-    branches: ["master", "main"],
-    ci: false,
-    plugins: [
-        [
-            "@semantic-release/commit-analyzer",
-            {
-              "preset": "conventionalcommits"
-            }
-          ],
-          [
-            "@semantic-release/release-notes-generator",
-            {
-              "preset": "conventionalcommits"
-            }
-          ],
-          [
-            "@semantic-release/github",
-            {
-              "successComment": "This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version ${nextRelease.version} :tada:",
-              "labels": false,
-              "releasedLabels": false
-            }
-          ],
-          [
-            "@semantic-release/changelog",
-            {
-              "changelogFile": "CHANGELOG.md",
-              "changelogTitle": "# Changelog\n\nAll notable changes to this project will be documented in this file."
-            }
-          ],
-          [
-            "@semantic-release/git",
-            {
-              "assets": [
-                "CHANGELOG.md"
-              ],
-              "message": "chore(release): version ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
-            }
-          ],
-          {
-            success(pluginConfig, context) {
-                const { options: { repositoryUrl }, nextRelease: { version }, logger } = context;
-
-                logger.info('Creating or updating major release tag!');
-                const [major] = version.split(".");
-                logger.info(`Pushing new version tag v${major} to git.`);
-                execSync(`git tag --force v${major}`);
-                execSync(`git push ${repositoryUrl} --force --tags`);
-            }
-          }
+```json
+{
+  "branches": [
+    "main",
+    "master"
+  ],
+  "ci": false,
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "successComment": "This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version ${nextRelease.version} :tada:",
+        "labels": false,
+        "releasedLabels": false
+      }
+    ],
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md",
+        "changelogTitle": "# Changelog\n\nAll notable changes to this project will be documented in this file."
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": [
+          "CHANGELOG.md"
+        ],
+        "message": "chore(release): version ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
     ]
-};
+  ]
+}
 ```
 
 #### GitHub Actions Workflows
@@ -230,6 +222,84 @@ jobs:
           validateSingleCommit: false
 ```
 
+Now, let's create the workflow that will create the new release when something is pushed to the `main` branch.
+
+Create a file `./.github/workflows/release.yaml` with the below content.
+
+```yaml
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Release
+        uses: cycjimmy/semantic-release-action@v3
+        with:
+          semantic_version: 18.0.0
+          extra_plugins: |
+            @semantic-release/changelog@6.0.0
+            @semantic-release/git@10.0.0
+            conventional-changelog-conventionalcommits@4.6.3
+            semantic-release-major-tag@0.3.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+```
+
 #### Release Our First Version
 
+Now, the fun part. Let's make add/edit something in our repository and commit it to a feature branch with a conventional commit style commit message. 
+
+For this example, I will simply be adding a `README.md` file to our repository.
+
+```shell
+git switch -c feat/add-readme
+echo "blog-semantic-release" >> README.md
+git add README.md
+git commit -m "feat: Adding README.md"
+```
+
+Now, let's open a pull request to the main branch. Don't forget, we need to write our pull request title as a convential commit message as well.
+
+```shell
+gh pr create --title "feat: Adding README.md"
+```
+
+Let's merge this pull request by doing a squash and merge.
+
+Immediately after merging, we can see that our GitHub Actions Workflow has kicked off. If we look a bit closer at the logs of this workflow, we can see that the next semantic version was determined to be `1.0.0`.
+
+<Image showing the workflow output and the semantic version high lighted>
+
+If you navigate to the root of the repository, you will see a `CHANGELOG.md` that contains information about our release. You will also see the that each conventional commit style message is a bullet point in the file. We did a squash and merge when we merged our pull request, so we only see the pull request title.
+
+I would encourage you to make small tweaks to your repository and test out the different commit messages to trigger new major, minor, and patch releases.
+
+```shell
+gh pr create --title "feat!: This will create a new major version"
+gh pr create --title "feat: This will create a new minor version"
+gh pr create --title "fix: This will create a new patch version"
+gh pr create --title "docs: This will not trigger a new version as we are only updating documentation"
+gh pr create --title "ci: This will not trigger a new verion as we are only updating ci/cd components"
+```
+
 ### Conclusion
+
+And bam, we are able to create new releases without thinking too much about it. We just have to make small and frequent commits to the main branch, which we should be doing already, and giving our pull request a title in the form of the conventional commit specification.
