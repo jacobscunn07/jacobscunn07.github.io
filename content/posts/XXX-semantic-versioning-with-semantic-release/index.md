@@ -1,6 +1,6 @@
 +++
 date = '2025-05-14T00:00:00-05:00'
-title = 'Versioning Software Artifacts at the Speed of git commit'
+title = 'Versioning Software at the Speed of git commit'
 slug = "semantic-versioning-with-semantic-release"
 tags = ["cicd"]
 +++
@@ -52,7 +52,7 @@ The overall type of change this git commit contains. This is what determines if 
 
 __scope__
 
-The scope is the area of the codebase that is being modified in someway in this git commit. Remember, it is a development best practice to make small changes and integrate those changes often into the main branch. This is an optional field, so it can be omitted. If you are working on a distributed system, it is likely not necessary. If this repository is for a modular monolith, it will probably be helpful to include the scope.
+The scope is the area of the codebase that is being modified in someway in this git commit. This is an optional field, so it can be omitted. If you are working on a distributed system, it is likely not necessary. If this repository is for a modular monolith, it will probably be helpful to include the scope.
 
 __Message or description__
 
@@ -88,7 +88,7 @@ The below is a bug fix to an existing feature and will result in bumping the __p
 git commit -m 'fix: This is a bug fix to an existing feature'
 ```
 
-So now we know that we want to version our software artifacts using the semantic versioning specification and how we can communicate what the next version should be using conventional commits, but how can we create a release each time merge a pull request? That, my friends, is where Semantic Release comes into play.
+So now we know that we want to version our software artifacts using the semantic versioning specification and how we can communicate what the next version should be using conventional commits, but how can we create a release each time a pull request is merged? That, my friends, is where Semantic Release comes into play.
 
 ### Semantic Release
 
@@ -132,9 +132,7 @@ To help dummy proof the process of naming our pull request titles in the convent
 
 #### Semantic Release Configuration
 
-Before we can do anything with Semantic Release, we need to create a configuration file so that it will know how we want it to behave. 
-
-For example, which branches it is allowed to be executed on and which plugins we want to use.
+Before we can do anything with Semantic Release, we need to create a configuration file so that it will know how we want it to behave. For example, which branches it is allowed to be executed on and which plugins we want to use.
 
 Create a file `.releaserc.json` at the root of your repository.
 
@@ -192,7 +190,7 @@ Now, to automate Semantic Release to be kicked off each time we merge a pull req
 
 ##### Workflow #1: Validate PR Title
 
-This workflow is technically optional, but I like to include it as it will prevent any issues with the conventional commit message. This workflow will validate that our pull request title is in the form of a conventional commit message. This workflow will fail the build if it is not preventing us from merging to the `main` branch.
+This workflow is technically optional, but I like to include it as it will prevent any issues with the conventional commit message. This workflow will validate that our pull request title is in the form of a conventional commit message. This workflow will fail the build if it is not, preventing us from merging to the `main` branch.
 
 Forgetting to write the commit messages in the form of a conventional commit can happen even to the most senior of engineers, so it is a nice precaution to have in place.
 
@@ -297,7 +295,7 @@ gh pr create --title "feat: Adding README.md"
 
 ![alt](open-pr.png)
 
-We can see in the image above, that the `Validate PR Title` workflow ran successfully. Now, let's get this merged by doing a squash and merge.
+We can see in the image above that the `Validate PR Title` workflow ran successfully. Now, let's get this merged by doing a squash and merge.
 
 Immediately after merging, we can see that our `Release` GitHub Actions Workflow has kicked off. If we look a bit closer at the logs of this workflow, we can see that the next semantic version was determined to be `1.0.0`.
 
@@ -324,3 +322,5 @@ gh pr create --title "ci: This will not trigger a new verion as we are only upda
 ### Conclusion
 
 And just like that, we are able to create new versions of our software that are versioned with the semantic versioning specification without too much of a hassle. It just took us to be a bit more disciplined in writing our git commit messages in the conventional commit format. By doing this, we are able to communicate with our automation system to create new releases and what version those releases should be with the help of the semantic release project.
+
+The repository used for our example can be found [here](https://github.com/jacobscunn07/blog-semantic-release).
